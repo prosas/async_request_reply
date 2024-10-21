@@ -4,22 +4,18 @@ require "async_request_reply/configs/configured"
 
 module AsyncRequestReply
 	class Config
-		include Singleton
+		include ActiveSupport::Configurable
+		DEFAULTS = {
+			repository_adapter: :redis,
+			redis_url_conection: 'redis://localhost:6379',
+			async_engine: RUBY_VERSION.to_i >= 3 ? :async : :sidekiq
+		}
 
-		def self.configured
-			instance.configured
-		end
-
-		def self.configure
-			instance.configure
-		end
-
-		def configure
-			AsyncRequestReply::Configs::Configuration.instance.config
-		end
-
-		def configured
-			AsyncRequestReply::Configs::Configured.instance
+		def initialize
+			config.repository_adapter = DEFAULTS[:repository_adapter]
+			config.redis_url_conection = DEFAULTS[:redis_url_conection]
+			config.async_engine = DEFAULTS[:async_engine]
+			super
 		end
 	end
 end
