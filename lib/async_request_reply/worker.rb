@@ -24,7 +24,7 @@ module AsyncRequestReply
 	  include ActiveModel::Naming
 	  include ActiveModel::Serializers::JSON
 
-  	@@config = AsyncRequestReply.config
+  	@@config = AsyncRequestReply::Config.instance
 
 	  STATUS = %i[waiting processing done unprocessable_entity internal_server_error]
 	  LIVE_TIMEOUT = 1.hours.to_i # TODO-2023-10-22: Isso limita o processamento de máximo 1 hora.
@@ -81,7 +81,7 @@ module AsyncRequestReply
 	  def new_record?(p_uuid)
 	    return true if p_uuid.nil?
 
-	    @@config.configured.repository_adapter.get(p_uuid).nil?
+	    @@config.repository_adapter.get(p_uuid).nil?
 	  end
 
 	  def id
@@ -96,10 +96,10 @@ module AsyncRequestReply
 	  end
 
 	  def self._find(p_uuid)
-	    resource = @@config.configured.repository_adapter.get(p_uuid)
+	    resource = @@config.repository_adapter.get(p_uuid)
 	    return nil unless resource
 
-	    unpack(@@config.configured.repository_adapter.get(p_uuid))
+	    unpack(@@config.repository_adapter.get(p_uuid))
 	  end
 
 
@@ -113,7 +113,7 @@ module AsyncRequestReply
 	  # integer value for how many seconds you want remove
 	  # from data store
 	  def destroy(seconds_in = 0.seconds.to_i)
-	    return @@config.configured.repository_adapter.del(id) if seconds_in.zero?
+	    return @@config.repository_adapter.del(id) if seconds_in.zero?
 
 	    self._ttl = seconds_in
 	    save
@@ -121,12 +121,12 @@ module AsyncRequestReply
 
 	  def save
 	  	return nil unless valid?
-	    @@config.configured.repository_adapter.setex(uuid, (_ttl || LIVE_TIMEOUT), to_msgpack)
+	    @@config.repository_adapter.setex(uuid, (_ttl || LIVE_TIMEOUT), to_msgpack)
 	  end
 
 	  def perform_async
 	  	save
-	  	@@config.configured.async_engine.perform_async(id)
+	  	@@config.async_engine.perform_async(id)
 	  end
 
 	  # Serializa a intância usando o MessagePack.

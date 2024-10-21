@@ -7,7 +7,7 @@ module AsyncRequestReply
 	module RepositoryAdapters
 		class RedisRepositoryAdapter < AbstractRepositoryAdapter
 			class << self
-				@@redis ||= Redis.new(url: AsyncRequestReply::Config.configured.redis_url_conection)
+				@@redis ||= Redis.new(url: AsyncRequestReply::Config.instance.redis_url_conection)
 
 				def get(uuid)
 					@@redis.get(uuid)

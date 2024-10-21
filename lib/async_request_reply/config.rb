@@ -1,6 +1,4 @@
 # frozen_string_literal: true
-require "async_request_reply/configs/configuration"
-require "async_request_reply/configs/configured"
 
 module AsyncRequestReply
 	class Config
@@ -16,6 +14,26 @@ module AsyncRequestReply
 			config.redis_url_conection = DEFAULTS[:redis_url_conection]
 			config.async_engine = DEFAULTS[:async_engine]
 			super
+		end
+
+		def self.instance
+			@instance ||= new
+		end
+
+		def repository_adapter
+			return AsyncRequestReply::RepositoryAdapters::RedisRepositoryAdapter if config.repository_adapter == :redis
+			config.repository_adapter
+		end
+
+		def redis_url_conection
+			config.redis_url_conection
+		end
+
+		def async_engine
+			return AsyncRequestReply::WorkersEngine::Async if config.async_engine   == :async
+			return AsyncRequestReply::WorkersEngine::Sidekiq if config.async_engine == :sidekiq
+
+			config.async_engine
 		end
 	end
 end

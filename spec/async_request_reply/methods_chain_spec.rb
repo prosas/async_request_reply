@@ -16,5 +16,9 @@ describe ::AsyncRequestReply::MethodsChain do
 		it 'run with two arguments' do
 			_(@methods_chain.run_methods_chain(Math, [[:hypot, [3,4]]])).must_equal 5.0
 		end
+
+		it 'run with a String' do
+			_(@methods_chain.run_methods_chain(String, [[:new,"a"],[:*,2]])).must_equal "aa"
+		end
 	end
 end

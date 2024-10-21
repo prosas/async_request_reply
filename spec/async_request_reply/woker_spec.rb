@@ -1,5 +1,6 @@
 require "minitest/autorun"
 require 'async_request_reply'
+require 'byebug'
 describe ::AsyncRequestReply::Worker do
 	describe 'when perform with all workflow defined' do
 		before do
@@ -45,7 +46,7 @@ describe ::AsyncRequestReply::Worker do
 		describe 'should perform when have class_instance' do
 			it 'with constant 1' do
 				@async_request.class_instance = 1
-				_(@async_request.perform).must_equal 1
+				 _(@async_request.perform).must_equal 1
 			end
 
 			it 'with constant File' do
