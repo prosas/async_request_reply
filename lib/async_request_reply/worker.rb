@@ -18,27 +18,20 @@ end
 module AsyncRequestReply
 	class Worker
 		# TODO-2023-10-22: Adicinar mais logs a classe.
-	  # include ActiveModel::API
-	  include ActiveModel::Model
-	  include ActiveModel::Validations
-	  include ActiveModel::Naming
-	  include ActiveModel::Serializers::JSON
 
   	@@config = AsyncRequestReply::Config.instance
 
 	  STATUS = %i[waiting processing done unprocessable_entity internal_server_error]
-	  LIVE_TIMEOUT = 1.hours.to_i # TODO-2023-10-22: Isso limita o processamento de máximo 1 hora.
+	  ONE_HOUR = 60*60
+	  LIVE_TIMEOUT = ONE_HOUR # TODO-2023-10-22: Isso limita o processamento de máximo 1 hora.
 
 	  attr_accessor :status, :uuid, :status_url, :redirect_url,
 	                :class_instance, :methods_chain, :success,
 	                :redirect_url, :failure, :_ttl
-	  attr_reader :new_record
-
-	  validates_presence_of :class_instance
-
+	  attr_reader :new_record, :errors
 
 	  def initialize(attrs = {})
-	    attrs.symbolize_keys!
+	    attrs.transform_keys(&:to_sym)
 	    @uuid = new_record?(attrs[:uuid]) ? "async_request:#{SecureRandom.uuid}" : attrs[:uuid]
 
 	    # INFO: Remover do repositório depois que async_request for processado
@@ -48,8 +41,16 @@ module AsyncRequestReply
 	    # de vida de cada instancia no banco pra ofecer melhor controle pra cada caso
 	    # de uso.
 	    destroy(30.seconds.to_i) if !new_record?(attrs[:uuid]) && attrs[:status].to_sym == :done
-	    
-	    super(default_attributes.merge(attrs))
+
+	    # Assigners attributes
+	    assign_attributes(default_attributes.merge(attrs))
+	  end
+
+	  def valid?
+	  	@errors = []
+	  	@errors << "class_instance can't be blank." if class_instance.nil?
+
+	  	@errors.empty?
 	  end
 
 	  def attributes
@@ -135,7 +136,7 @@ module AsyncRequestReply
 	  # Ref.: https://msgpack.org/
 	  # Ref.: https://github.com/msgpack/msgpack-ruby#extension-types
 	  def to_msgpack
-	    self.class.message_pack_factory.dump(attributes.as_json)
+	    self.class.message_pack_factory.dump(attributes)
 	  end
 
 	  def self.unpack(packer)
@@ -177,14 +178,14 @@ module AsyncRequestReply
 	    # TODO-2023-10-22: Entender em que momento do ciclo de vida
 	    # do objeto que esse atributo é nil pra corrigir o problema
 	    # corretamente.
-	    @success&.symbolize_keys
+	    @success&.transform_keys(&:to_sym)
 	  end
 
 	  def failure
 	    # TODO-2023-10-22: Entender em que momento do ciclo de vida
 	    # do objeto que esse atributo é nil pra corrigir o problema
 	    # corretamente.
-	    @failure&.symbolize_keys
+	    @failure&.transform_keys(&:to_sym)
 	  end
 
 	  def perform
@@ -211,8 +212,9 @@ module AsyncRequestReply
 	        methods_reject_after = failure[:methods_chain]
 
 	        result = MethodsChain.run_methods_chain(klass_reject_after,methods_reject_after)
+
 	        update(status: :unprocessable_entity,
-	               errors: formated_erros_to_json(JSON.parse(result)))
+	               errors: formated_erros_to_json(result))
 	      end
 	    rescue StandardError => e
 	    	raise e
@@ -222,7 +224,6 @@ module AsyncRequestReply
 
 	  # TODO: Remove do worker formatação dos erros.
 	  def formated_erros_to_json(errors)
-	    errors = errors.as_json
 	    resouce = if errors.respond_to?(:map)
 	                errors.map { |title, error| { title: title, detail: error } }
 	              else
@@ -230,6 +231,17 @@ module AsyncRequestReply
 	              end
 
 	    resouce.map { |error| error.select { |_k, v| v.present? } }
-	  end	  
+	  end
+
+	  # private
+	  def assign_attributes(attrs)
+	  	attrs.each do |attribute,value|
+	  		send("#{attribute}=", value)
+	  	end
+	  end
+
+	  def errors=(value)
+	  	@errors = value
+	  end
 	end
 end

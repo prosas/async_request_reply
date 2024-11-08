@@ -1,15 +1,18 @@
 # frozen_string_literal: true
+require 'ostruct'
 
 module AsyncRequestReply
 	class Config
-		include ActiveSupport::Configurable
 		DEFAULTS = {
 			repository_adapter: :redis,
 			redis_url_conection: 'redis://localhost:6379',
-			async_engine: RUBY_VERSION.to_i >= 3 ? :async : :sidekiq
+			async_engine: RUBY_VERSION.start_with?('3.') ? :async : :sidekiq
 		}
 
+		attr_accessor :config
+
 		def initialize
+			@config ||= OpenStruct.new
 			config.repository_adapter = DEFAULTS[:repository_adapter]
 			config.redis_url_conection = DEFAULTS[:redis_url_conection]
 			config.async_engine = DEFAULTS[:async_engine]

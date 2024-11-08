@@ -1,6 +1,4 @@
 # frozen_string_literal: true
-require 'active_model'
-require 'active_support/core_ext'
 require 'msgpack'
 
 module AsyncRequestReply
@@ -13,4 +11,8 @@ module AsyncRequestReply
 
 	# Load default configs
 	AsyncRequestReply::Config.instance
+
+	def self.config
+		AsyncRequestReply::Config.instance
+	end
 end

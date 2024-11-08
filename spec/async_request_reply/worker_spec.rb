@@ -1,6 +1,7 @@
 require "minitest/autorun"
 require 'async_request_reply'
 require 'byebug'
+
 describe ::AsyncRequestReply::Worker do
 	describe 'when perform with all workflow defined' do
 		before do
@@ -40,7 +41,7 @@ describe ::AsyncRequestReply::Worker do
 		end
 
 		it 'should not perform with not have class_instance' do
-			_(@async_request.perform).must_equal nil
+			assert_nil(@async_request.perform)
 		end
 
 		describe 'should perform when have class_instance' do

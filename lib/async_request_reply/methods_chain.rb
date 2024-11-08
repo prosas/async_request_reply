@@ -14,7 +14,7 @@ module AsyncRequestReply
 				# constant: (Constante)
 				# attrs_methods: (Array)
 
-		    attrs_methods.inject(constant.is_a?(String) ? constant.constantize : constant) do |constantized, method|
+		    attrs_methods.inject(constant) do |constantized, method|
 		      if method[1]
 		        attrs = method[1]
 		        
