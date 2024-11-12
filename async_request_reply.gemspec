@@ -18,9 +18,8 @@ Gem::Specification.new do |gem|
   gem.require_paths = ["lib"]
   
   gem.add_dependency "msgpack", '~> 1.0'
-  gem.add_dependency "redis", '~> 4.0'
+  gem.add_dependency "redis", '>= 4.0'
   gem.add_dependency "enumerize", '~> 2.3'
-  gem.add_dependency "async", "1.32"
   gem.add_dependency "sidekiq", '~> 5.0'
   
 end
