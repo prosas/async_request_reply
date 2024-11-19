@@ -2,24 +2,24 @@
 require_relative 'config'
 require_relative 'methods_chain'
 
-# TODO[DANGER]: Mockeypath na classe ActionDispatch::Http::UploadedFile
-# para tornar possível implementação do método to_msgpack para params
-# vindo da controller. Em implementações futuras fazer o hacking direto no método to_msgpack
-module ActionDispatch
-  module Http
-    class UploadedFile
-      def as_json
-        self
-      end
-    end
-  end
-end
-
 module AsyncRequestReply
 	class Worker
 		# TODO-2023-10-22: Adicinar mais logs a classe.
 
   	@@config = AsyncRequestReply::Config.instance
+  	@@config.add_message_pack_factory do |factory|
+  		factory[:first_byte] = 0x09
+  		factory[:klass] = AsyncRequestReply::Worker
+  		factory[:packer] = lambda { |worker, packer|
+				packer.write_string(worker.to_msgpack)
+			}
+  		factory[:unpacker] = lambda { |unpacker|
+				data = unpacker.read
+				AsyncRequestReply::Worker.new(self.unpack(data))
+			}
+
+  		factory
+  	end
 
 	  STATUS = %i[waiting processing done unprocessable_entity internal_server_error]
 	  ONE_HOUR = 60*60
@@ -91,7 +91,7 @@ module AsyncRequestReply
 
 	  def self.find(p_uuid)
 	    resource = _find(p_uuid)
-	    return nil unless resource.present?
+	    return nil if resource.empty?
 
 	    new(resource)
 	  end
@@ -146,31 +146,17 @@ module AsyncRequestReply
 	  # TODO: Desacoplar message pack factory
 	  def self.message_pack_factory
 	    factory = MessagePack::Factory.new
-	    factory.register_type(
-	      0x09,
-	      ActionDispatch::Http::UploadedFile,
-	      packer: lambda { |upload, packer|
-	        packer.write_string(upload.original_filename)
-	        encoded_file = Base64.encode64(upload.tempfile.open.read)
-	        packer.write_string(encoded_file)
-	        packer.write_string(upload.content_type)
-	        packer.write_string(upload.headers)
-	      },
-	      unpacker: lambda { |unpacker|
-	        file_name = unpacker.read
-	        bytes_temp_file = Base64.decode64(unpacker.read)
-	        headers = unpacker.read
 
-	        file = Tempfile.new(file_name)
-	        file.binmode
-	        file.write(bytes_temp_file)
-	        file.close
+	  	@@config.message_packer_factories.each do |fac|
+	  		factory.register_type(
+	  			fac[:first_byte],
+	  			fac[:klass],
+	  			packer: fac[:packer],
+	  			unpacker: fac[:unpacker],
+	  			recursive: true
+	  			)
+	  	end
 
-	        content_type = unpacker.read
-	        ActionDispatch::Http::UploadedFile.new(tempfile: file, type: content_type, head: headers, filename: file_name)
-	      },
-	      recursive: true
-	    )
 	    factory
 	  end
 

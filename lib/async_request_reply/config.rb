@@ -6,8 +6,10 @@ module AsyncRequestReply
 		DEFAULTS = {
 			repository_adapter: :redis,
 			redis_url_conection: 'redis://localhost:6379',
-			async_engine: RUBY_VERSION.start_with?('3.') ? :async : :sidekiq
+			async_engine: :sidekiq
 		}
+
+		@@message_packer_factories = []
 
 		attr_accessor :config
 
@@ -37,6 +39,15 @@ module AsyncRequestReply
 			return AsyncRequestReply::WorkersEngine::Sidekiq if config.async_engine == :sidekiq
 
 			config.async_engine
+		end
+
+		def message_packer_factories
+			@@message_packer_factories
+		end
+
+		def add_message_pack_factory
+			factory = {first_byte: nil, klass: nil, packer: nil, unpacker: nil}
+			@@message_packer_factories.push(yield(factory))
 		end
 	end
 end
