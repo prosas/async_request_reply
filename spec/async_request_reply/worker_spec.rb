@@ -33,6 +33,10 @@ describe ::AsyncRequestReply::Worker do
 		it 'perform_async' do
 			@async_request.perform_async
 		end
+
+		it 'find' do
+			AsyncRequestReply::Worker.find(@async_request.id)
+		end
 	end
 
 	describe 'when perform with some parts of workflow' do
@@ -51,12 +55,28 @@ describe ::AsyncRequestReply::Worker do
 			end
 
 			it 'with constant File' do
-				# TODO: This test fail. Messagepack is not 
-				# implemented for File.
-				# TODO: Create way for inject Messagepack
-				# methods
-				# @async_request.class_instance = File
-				# _(@async_request.perform).must_equal File
+				AsyncRequestReply::Config.configure.add_message_pack_factory do |factory|
+					factory[:first_byte] = 0x0A
+					factory[:klass] = File
+					factory[:packer] = lambda { |instance, packer|
+						packer.write_string(instance.path)
+						encoded_file = File.read(instance.path)
+		      	packer.write_string(encoded_file)
+		      }
+					factory[:unpacker] = lambda { |unpacker|
+						file_name = unpacker.read
+						bytes_temp_file = unpacker.read
+						file = File.new
+						file.binmode
+						file.write(bytes_temp_file)
+						file.close
+						file
+		      }
+		      factory
+				end
+				file = File.new("./file.txt", "w")
+				@async_request.class_instance = file
+				_(@async_request.perform).must_equal file
 			end
 		end
 	end
