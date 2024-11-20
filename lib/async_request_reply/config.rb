@@ -25,6 +25,10 @@ module AsyncRequestReply
 			@instance ||= new
 		end
 
+		def self.configure
+			instance
+		end
+
 		def repository_adapter
 			return AsyncRequestReply::RepositoryAdapters::RedisRepositoryAdapter if config.repository_adapter == :redis
 			config.repository_adapter
