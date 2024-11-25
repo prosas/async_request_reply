@@ -7,19 +7,19 @@ module AsyncRequestReply
 		# TODO-2023-10-22: Adicinar mais logs a classe.
 
   	@@config = AsyncRequestReply::Config.instance
-  	@@config.add_message_pack_factory do |factory|
-  		factory[:first_byte] = 0x09
-  		factory[:klass] = AsyncRequestReply::Worker
-  		factory[:packer] = lambda { |worker, packer|
-				packer.write_string(worker.to_msgpack)
-			}
-  		factory[:unpacker] = lambda { |unpacker|
-				data = unpacker.read
-				AsyncRequestReply::Worker.new(self.unpack(data))
-			}
+  	# @@config.add_message_pack_factory do |factory|
+  	# 	factory[:first_byte] = 0x09
+  	# 	factory[:klass] = AsyncRequestReply::Worker
+  	# 	factory[:packer] = lambda { |worker, packer|
+		# 		packer.write_string(worker.to_msgpack)
+		# 	}
+  	# 	factory[:unpacker] = lambda { |unpacker|
+		# 		data = unpacker.read
+		# 		AsyncRequestReply::Worker.new(self.unpack(data))
+		# 	}
 
-  		factory
-  	end
+  	# 	factory
+  	# end
 
 	  STATUS = %i[waiting processing done unprocessable_entity internal_server_error]
 	  ONE_HOUR = 60*60
@@ -208,7 +208,6 @@ module AsyncRequestReply
 	    end
 	  end
 
-	  # TODO: Remove do worker formatação dos erros.
 	  def formated_erros_to_json(errors)
 	    resouce = if errors.respond_to?(:map)
 	                errors.map { |title, error| { title: title, detail: error } }
