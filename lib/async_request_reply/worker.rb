@@ -7,19 +7,6 @@ module AsyncRequestReply
 		# TODO-2023-10-22: Adicinar mais logs a classe.
 
   	@@config = AsyncRequestReply::Config.instance
-  	# @@config.add_message_pack_factory do |factory|
-  	# 	factory[:first_byte] = 0x09
-  	# 	factory[:klass] = AsyncRequestReply::Worker
-  	# 	factory[:packer] = lambda { |worker, packer|
-		# 		packer.write_string(worker.to_msgpack)
-		# 	}
-  	# 	factory[:unpacker] = lambda { |unpacker|
-		# 		data = unpacker.read
-		# 		AsyncRequestReply::Worker.new(self.unpack(data))
-		# 	}
-
-  	# 	factory
-  	# end
 
 	  STATUS = %i[waiting processing done unprocessable_entity internal_server_error]
 	  ONE_HOUR = 60*60
@@ -28,7 +15,7 @@ module AsyncRequestReply
 	  attr_accessor :status, :uuid, :status_url, :redirect_url,
 	                :class_instance, :methods_chain, :success,
 	                :redirect_url, :failure, :_ttl
-	  attr_reader :new_record, :errors
+	  attr_reader :new_record, :errors, :start_time, :end_time
 
 	  def initialize(attrs = {})
 	    attrs.transform_keys(&:to_sym)
@@ -60,7 +47,9 @@ module AsyncRequestReply
 	      'failure' => failure,
 	      'methods_chain' => methods_chain,
 	      'class_instance' => class_instance,
-	      'redirect_url' => redirect_url
+	      'redirect_url' => redirect_url,
+	      'start_time' => start_time,
+	      'end_time' => end_time
 	    }
 	  end
 
@@ -102,6 +91,10 @@ module AsyncRequestReply
 
 	    unpack(@@config.repository_adapter.get(p_uuid))
 	  end
+
+	  def elapsed
+			(@end_time || Process.clock_gettime(Process::CLOCK_MONOTONIC)) - @start_time
+		end
 
 
 	  def update(attrs)
@@ -177,12 +170,16 @@ module AsyncRequestReply
 	  def perform
 	    return nil unless update(status: :processing)
 
+	    @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 	    begin
-	      element = MethodsChain.run_methods_chain(class_instance, methods_chain)
+	      if element = MethodsChain.run_methods_chain(class_instance, methods_chain)
+	
+		      klass_after = success[:class_instance] == 'self' ? element : success[:class_instance]
+		      methods_after = success[:methods_chain]
 
-	      klass_after = success[:class_instance] == 'self' ? element : success[:class_instance]
-	      methods_after = success[:methods_chain]
-	      if result = MethodsChain.run_methods_chain(klass_after, methods_after)
+	      	result = MethodsChain.run_methods_chain(klass_after, methods_after)
+	        
+	        @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 	        update(
 	          status: :done,
 	          redirect_url: if redirect_url.is_a?(Hash)
@@ -198,13 +195,16 @@ module AsyncRequestReply
 	        methods_reject_after = failure[:methods_chain]
 
 	        result = MethodsChain.run_methods_chain(klass_reject_after,methods_reject_after)
-
+          
+          @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 	        update(status: :unprocessable_entity,
 	               errors: formated_erros_to_json(result))
+	        result
 	      end
 	    rescue StandardError => e
-	    	raise e
-	      update(status: :internal_server_error, errors: formated_erros_to_json(e))
+	    	@end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+	      update(status: :internal_server_error, errors: formated_erros_to_json(e.message))
+	      nil
 	    end
 	  end
 
@@ -218,7 +218,6 @@ module AsyncRequestReply
 	    resouce.map { |error| error.select { |_k, v| v.present? } }
 	  end
 
-	  # private
 	  def assign_attributes(attrs)
 	  	attrs.each do |attribute,value|
 	  		send("#{attribute}=", value)
@@ -227,6 +226,15 @@ module AsyncRequestReply
 
 	  def errors=(value)
 	  	@errors = value
+	  end
+
+	  private
+	  def start_time=(value)
+	  	@start_time = value
+	  end
+
+	  def end_time=(value)
+	  	@end_time = value
 	  end
 	end
 end
