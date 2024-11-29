@@ -22,8 +22,37 @@ describe ::AsyncRequestReply::Worker do
 		end
 
 		it 'perform' do
-			_(@async_request.perform).must_equal 5
-			_(::AsyncRequestReply::Worker.find(@async_request.uuid).status).must_equal "done"
+			_(AsyncRequestReply::Worker.find(@async_request.id).perform).must_equal 5
+			_(AsyncRequestReply::Worker.find(@async_request.id).start_time).wont_be_nil
+			_(AsyncRequestReply::Worker.find(@async_request.id).end_time).wont_be_nil
+			_(AsyncRequestReply::Worker.find(@async_request.id).elapsed).wont_be_nil
+			_(AsyncRequestReply::Worker.find(@async_request.uuid).status).must_equal "done"
+		end
+
+		describe 'failure workflow' do
+			describe 'internal_server_error' do
+				it '.perform' do
+					@async_request.methods_chain = [[:/,0]]
+					@async_request.save
+					assert_nil(AsyncRequestReply::Worker.find(@async_request.id).perform)
+					_(AsyncRequestReply::Worker.find(@async_request.id).start_time).wont_be_nil
+					_(AsyncRequestReply::Worker.find(@async_request.id).end_time).wont_be_nil
+					_(AsyncRequestReply::Worker.find(@async_request.id).elapsed).wont_be_nil
+					_(AsyncRequestReply::Worker.find(@async_request.uuid).status).must_equal "internal_server_error"
+				end
+			end
+			describe 'fail' do
+				it '.perform' do
+					@async_request.methods_chain = [[:==,2]]
+					@async_request.failure = {class_instance: 0, methods_chain: []}
+					@async_request.save
+					_(AsyncRequestReply::Worker.find(@async_request.id).perform).must_equal 0
+					_(AsyncRequestReply::Worker.find(@async_request.id).start_time).wont_be_nil
+					_(AsyncRequestReply::Worker.find(@async_request.id).end_time).wont_be_nil
+					_(AsyncRequestReply::Worker.find(@async_request.id).elapsed).wont_be_nil
+					_(AsyncRequestReply::Worker.find(@async_request.uuid).status).must_equal "unprocessable_entity"
+				end
+			end
 		end
 
 		it 'destroy' do

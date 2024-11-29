@@ -21,6 +21,21 @@ class Fibonacci
     (0..up_to).map { |n| @sequence_cache[n] ||= recursive(n) }
   end
 end
+
+AsyncRequestReply::Config.configure.add_message_pack_factory do |factory|
+  factory[:first_byte] = 0x09
+  factory[:klass] = Fibonacci
+  factory[:packer] = lambda { |instance, packer|
+    packer.write_string(instance.sequence_cache.to_json)
+  }
+  factory[:unpacker] = lambda { |unpacker|
+    data = unpacker.read
+    instance = Fibonacci.new
+    instance.sequence_cache = JSON.parse(data)
+    instance
+  }
+  factory
+end
 	
 Sidekiq.configure_client do |config|
 	config.redis = { url: AsyncRequestReply::Config.instance.redis_url_conection }

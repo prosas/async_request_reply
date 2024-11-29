@@ -31,6 +31,22 @@ describe AsyncRequestReply::WorkerInBatch do
 	let(:worker_in_batch) { AsyncRequestReply::WorkerInBatch.new([work1,work2]) } 
 
 	describe '.perform' do
+		before do
+			AsyncRequestReply::Config.configure.add_message_pack_factory do |factory|
+				factory[:first_byte] = 0x09
+				factory[:klass] = Fibonacci
+				factory[:packer] = lambda { |instance, packer|
+	      	packer.write_string(instance.sequence_cache.to_json)
+	      }
+				factory[:unpacker] = lambda { |unpacker|
+	        data = unpacker.read
+	        instance = Fibonacci.new
+	        instance.sequence_cache = JSON.parse(data)
+	        instance
+	      }
+	      factory
+			end
+		end
 		# describe 'with all works successfully' do
 		# 	before do
 		# 		@worker_in_batch = AsyncRequestReply::WorkerInBatch.new([work1,work2])
@@ -53,8 +69,18 @@ describe AsyncRequestReply::WorkerInBatch do
 		# end
 
 		it 'Using with Fibonacci' do
-			worker = AsyncRequestReply::Worker.new({ class_instance: Fibonacci.new, methods_chain: [[:sequence, 35]]})
-			in_batch = AsyncRequestReply::WorkerInBatch.new([worker])
+			worker1 = AsyncRequestReply::Worker.new({ class_instance: Fibonacci.new, methods_chain: [[:sequence, 35]]})
+			worker2 = AsyncRequestReply::Worker.new({ class_instance: Fibonacci.new, methods_chain: [[:sequence, 35]]})
+
+			batch = AsyncRequestReply::WorkerInBatch.new
+			batch.workers = [worker1, worker2]
+			batch.save
+			batch = AsyncRequestReply::WorkerInBatch.find(batch.id)
+			_(batch.perform)
+			_(batch.workers.count).must_equal 2
+			_(batch.start_time)
+			_(batch.end_time)
+			_(batch.elapsed)
 		end
 	end
 end

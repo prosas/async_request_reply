@@ -7,7 +7,6 @@ module AsyncRequestReply
 
 		  def perform(async_request_id)
 				worker = ::AsyncRequestReply::Worker.find(async_request_id)
-				puts worker.inspect
 				worker.perform
 			end
 		end

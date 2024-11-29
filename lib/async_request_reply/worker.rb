@@ -129,7 +129,7 @@ module AsyncRequestReply
 	  # Ref.: https://msgpack.org/
 	  # Ref.: https://github.com/msgpack/msgpack-ruby#extension-types
 	  def to_msgpack
-	    self.class.message_pack_factory.dump(attributes)
+	    self.class.message_pack_factory.dump(attributes.as_json)
 	  end
 
 	  def self.unpack(packer)
@@ -168,11 +168,16 @@ module AsyncRequestReply
 	  end
 
 	  def perform
-	    return nil unless update(status: :processing)
+	  	@@config.logger.info("Start perform worker #{self.uuid}")
+	    unless update(status: :processing)
+		  	@@config.logger.error("End perform worker #{self.uuid} with errors: #{self.errors.inspect}")
+		    return nil 
+	    end
 
 	    @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 	    begin
 	      if element = MethodsChain.run_methods_chain(class_instance, methods_chain)
+	      	@@config.logger.info("successful workflow perform worker #{self.uuid}")
 	
 		      klass_after = success[:class_instance] == 'self' ? element : success[:class_instance]
 		      methods_after = success[:methods_chain]
@@ -189,8 +194,10 @@ module AsyncRequestReply
 	                          redirect_url
 	                        end
 	        )
+	        @@config.logger.info("Done perform worker #{self.uuid}")
 	        result
 	      else
+	      	@@config.logger.info("failure workflow perform worker #{self.uuid}")
 	        klass_reject_after = failure[:class_instance] == 'self' ? element : failure[:class_instance]
 	        methods_reject_after = failure[:methods_chain]
 
@@ -199,9 +206,11 @@ module AsyncRequestReply
           @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 	        update(status: :unprocessable_entity,
 	               errors: formated_erros_to_json(result))
+	        @@config.logger.info("Done perform worker #{self.uuid} with fails #{formated_erros_to_json(result)}")
 	        result
 	      end
 	    rescue StandardError => e
+        @@config.logger.info("Fatal perform worker #{self.uuid} with fails #{formated_erros_to_json(e.message)}")
 	    	@end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 	      update(status: :internal_server_error, errors: formated_erros_to_json(e.message))
 	      nil

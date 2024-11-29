@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 require 'ostruct'
+require 'logger'
 
 module AsyncRequestReply
 	class Config
 		DEFAULTS = {
 			repository_adapter: :redis,
 			redis_url_conection: 'redis://localhost:6379',
-			async_engine: :sidekiq
+			async_engine: :sidekiq,
+			logger: Logger.new(STDOUT)
 		}
 
 		@@message_packer_factories = []
@@ -18,6 +20,7 @@ module AsyncRequestReply
 			config.repository_adapter = DEFAULTS[:repository_adapter]
 			config.redis_url_conection = DEFAULTS[:redis_url_conection]
 			config.async_engine = DEFAULTS[:async_engine]
+			config.logger = DEFAULTS[:logger]
 			super
 		end
 
@@ -25,8 +28,8 @@ module AsyncRequestReply
 			@instance ||= new
 		end
 
-		def self.configure
-			instance
+		def configure
+			yield(@config)
 		end
 
 		def repository_adapter
@@ -43,6 +46,10 @@ module AsyncRequestReply
 			return AsyncRequestReply::WorkersEngine::Sidekiq if config.async_engine == :sidekiq
 
 			config.async_engine
+		end
+
+		def logger
+			config.logger
 		end
 
 		def message_packer_factories
