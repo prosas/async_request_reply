@@ -29,7 +29,10 @@ It`s same that call:
 ```ruby
 1.send(:+,1).send(:*,2)
 ```
-This way you can easy save this instruction for run later. 
+This way you can easy save this instruction for run later.
+
+# How instruction are saves
+_TODO_
 
 # Basic usage
 With ::AsyncRequestReply::Worker you can save _methods chain_ instructions for run later.
@@ -38,7 +41,9 @@ With ::AsyncRequestReply::Worker you can save _methods chain_ instructions for r
 @async_request.save
 ::AsyncRequestReply::Worker.find(@async_request.id).perform
 ```
-Or you can call _perform_async_. ::AsyncRequestReply::Worker never save the result of _methods chain_.
+Or you can call _perform_async_.
+AsyncRequestReply::Worker never save the result of _methods chain_.
+
 ```ruby
 class Project
 	def self.very_expensive_task
@@ -49,6 +54,9 @@ end
 @async_request.perform_async
 ```
 You can define a methods chain for success and failure.
+
+# Defining message packer factories
+_TODO_
 
 # Define your own repository
 _TODO_
