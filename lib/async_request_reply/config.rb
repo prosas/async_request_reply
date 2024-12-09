@@ -29,7 +29,7 @@ module AsyncRequestReply
 		end
 
 		def configure
-			yield(@config)
+			yield(self)
 		end
 
 		def repository_adapter
