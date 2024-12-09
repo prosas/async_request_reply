@@ -56,7 +56,32 @@ end
 You can define a methods chain for success and failure.
 
 # Defining message packer factories
-_TODO_
+```ruby
+AsyncRequestReply::Config.configure.add_message_pack_factory do |factory|
+	factory[:first_byte] = 0x0A
+	factory[:klass] = File
+	factory[:packer] = lambda { |instance, packer|
+		packer.write_string(instance.path)
+		encoded_file = File.read(instance.path)
+  	packer.write_string(encoded_file)
+  }
+	factory[:unpacker] = lambda { |unpacker|
+		file_name = unpacker.read
+		bytes_temp_file = unpacker.read
+		file = File.new
+		file.binmode
+		file.write(bytes_temp_file)
+		file.close
+		file
+  }
+  factory
+end
+
+file = File.new("./file.txt", "w")
+@async_request = ::AsyncRequestReply::Worker.new
+@async_request.class_instance = file
+@async_request.perform_async
+```
 
 # Define your own repository
 _TODO_
