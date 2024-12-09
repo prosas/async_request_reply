@@ -48,6 +48,18 @@ module AsyncRequestReply
 			config.async_engine
 		end
 
+		def async_engine=(value)
+			config.async_engine = value
+		end
+
+		def repository_adapter=(value)
+			config.repository_adapter = value
+		end
+
+		def redis_url_conection=(value)
+			config.redis_url_conection = value
+		end
+
 		def logger
 			config.logger
 		end
