@@ -64,6 +64,18 @@ _TODO_
 # Define your own async engine
 _TODO_
 
+# Worker In Batch
+```ruby
+worker1 = AsyncRequestReply::Worker.new({ class_instance: Fibonacci.new, methods_chain: [[:sequence, 35]]})
+worker2 = AsyncRequestReply::Worker.new({ class_instance: Fibonacci.new, methods_chain: [[:sequence, 35]]})
+
+batch = AsyncRequestReply::WorkerInBatch.new
+batch.workers = [worker1, worker2]
+batch.save
+batch = AsyncRequestReply::WorkerInBatch.find(batch.id)
+batch.perform
+```
+
 # Test
 
 ```
