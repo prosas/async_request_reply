@@ -40,9 +40,9 @@ module AsyncRequestReply
         attrs_methods.inject(constant.is_a?(String) ? constant.constantize : constant) do |constantized, method|
           if method[1]
             attrs = method[1]
-
+            
             # If the argument is a Proc, pass it as a block to the method call.
-            attrs.is_a?(Proc) ? constantized.send(method[0], &attrs) : constantized.send(method[0], attrs)
+            attrs.is_a?(Proc) ? constantized.send(method[0], &attrs) : constantized.send(method[0], *attrs)
           else
             # If no argument is provided, call the method without parameters.
             constantized.send(method[0])
