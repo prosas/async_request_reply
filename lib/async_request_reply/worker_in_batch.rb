@@ -14,6 +14,19 @@ module AsyncRequestReply
     # @return [Array<String>] an array of worker UUIDs.
     attr_reader :worker_ids, :uuid
 
+     class WorkerInBatchNotFound < StandardError
+      attr_accessor :uuid
+
+      def initialize(uuid)
+        @uuid = uuid
+        super
+      end
+
+      def message
+        "WorkerInBatch not found with id #{@uuid}"
+      end
+    end
+
     # @private
     ONE_HOUR = 60 * 60 
 
@@ -50,15 +63,24 @@ module AsyncRequestReply
       @worker_ids.map { |id| AsyncRequestReply::Worker.find(id) }
     end
 
+    # Finds a `WorkerInBatch` by its UUID raise exception case not found.
+    #
+    # @param p_uuid [String] The UUID of the batch to find.
+    # @return [AsyncRequestReply::WorkerInBatch, nil] The found batch or nil if not found.
+    def self.find!(p_uuid)
+      resource = find(p_uuid)
+      raise(WorkerInBatchNotFound, p_uuid) unless resource
+    end
+
     # Finds a `WorkerInBatch` by its UUID.
     #
     # @param p_uuid [String] The UUID of the batch to find.
     # @return [AsyncRequestReply::WorkerInBatch, nil] The found batch or nil if not found.
     def self.find(p_uuid)
       resource = _find(p_uuid)
-      return nil if resource.empty?
+      return nil unless resource
 
-      instance = new(resource)
+      instance = new(resource['uuid'])
       instance.workers = resource["worker_ids"].map { |id| AsyncRequestReply::Worker.find(id) }
       instance
     end
