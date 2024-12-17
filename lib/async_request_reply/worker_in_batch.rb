@@ -70,6 +70,7 @@ module AsyncRequestReply
     def self.find!(p_uuid)
       resource = find(p_uuid)
       raise(WorkerInBatchNotFound, p_uuid) unless resource
+      resource
     end
 
     # Finds a `WorkerInBatch` by its UUID.
