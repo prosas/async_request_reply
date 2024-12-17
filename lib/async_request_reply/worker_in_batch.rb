@@ -177,6 +177,7 @@ module AsyncRequestReply
     #
     # @return [void]
     def perform
+      save
       workers.map(&:perform_async)
     end
 
