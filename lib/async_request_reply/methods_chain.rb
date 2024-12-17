@@ -38,11 +38,14 @@ module AsyncRequestReply
       def run_methods_chain(constant, attrs_methods = [])
         # The constant is either a string that needs to be constantized or an already defined constant.
         attrs_methods.inject(constant.is_a?(String) ? constant.constantize : constant) do |constantized, method|
+
           if method[1]
             attrs = method[1]
-            
             # If the argument is a Proc, pass it as a block to the method call.
-            attrs.is_a?(Proc) ? constantized.send(method[0], &attrs) : constantized.send(method[0], *attrs)
+            next constantized.send(method[0], &attrs) if attrs.is_a?(Proc)
+            next constantized.send(method[0], *attrs) if attrs.is_a?(Array)
+            constantized.send(method[0], attrs)
+
           else
             # If no argument is provided, call the method without parameters.
             constantized.send(method[0])
