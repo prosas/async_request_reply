@@ -10,10 +10,7 @@
 
 module AsyncRequestReply
   class WorkerInBatch
-    # The worker UUIDs associated with this batch.
-    # @return [Array<String>] an array of worker UUIDs.
-    attr_reader :worker_ids, :uuid
-
+    # @private
      class WorkerInBatchNotFound < StandardError
       attr_accessor :uuid
 
@@ -26,6 +23,11 @@ module AsyncRequestReply
         "WorkerInBatch not found with id #{@uuid}"
       end
     end
+
+    # The worker UUIDs associated with this batch.
+    # @return [Array<String>] an array of worker UUIDs.
+    attr_reader :worker_ids, :uuid
+    attr_accessor :meta
 
     # @private
     ONE_HOUR = 60 * 60 
@@ -42,6 +44,8 @@ module AsyncRequestReply
     #
     # @param uuid [String, nil] The UUID of the batch. If nil, a new UUID is generated.
     def initialize(uuid = nil)
+      @worker_ids = []
+      @meta = {}
       @uuid = new_record?(uuid) ? "async_request_in_batch:#{SecureRandom.uuid}" : uuid
     end
 
@@ -83,6 +87,7 @@ module AsyncRequestReply
 
       instance = new(resource['uuid'])
       instance.workers = resource["worker_ids"].map { |id| AsyncRequestReply::Worker.find(id) }
+      instance.meta = resource["meta"]
       instance
     end
 
@@ -189,6 +194,7 @@ module AsyncRequestReply
       {
         uuid: @uuid,
         worker_ids: @worker_ids,
+        meta: @meta,
         qtd_processing: processing.count,
         qtd_processed: processed.count,
         qtd_success: successes.count,

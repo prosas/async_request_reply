@@ -30,6 +30,15 @@ describe AsyncRequestReply::WorkerInBatch do
 	let(:work3_erro) { AsyncRequestReply::Worker.new({ class_instance: 2, methods_chain: [[:*, 2], [:+, 2], [:/, 0]]}) }
 	let(:worker_in_batch) { AsyncRequestReply::WorkerInBatch.new([work1,work2]) }
 
+	describe 'meta_data' do
+		it 'should save meta_data' do
+			worker_in_batch = AsyncRequestReply::WorkerInBatch.new
+			worker_in_batch.meta = {'redirect_url': 'url'}
+			worker_in_batch.save
+			_(AsyncRequestReply::WorkerInBatch.find(worker_in_batch.id).meta["redirect_url"]).must_equal 'url'
+		end
+	end
+
 	describe '.find' do
 		it 'should find work' do
 			worker_in_batch = AsyncRequestReply::WorkerInBatch.new
