@@ -30,7 +30,7 @@ module AsyncRequestReply
     attr_accessor :meta
 
     # @private
-    ONE_HOUR = 60 * 60 
+    ONE_HOUR = 3600
 
     # @private
     LIVE_TIMEOUT = ONE_HOUR
@@ -56,17 +56,19 @@ module AsyncRequestReply
     #
     # @param workers [Array<AsyncRequestReply::Worker>] The workers to assign to the batch.
     def workers=(workers)
-      workers.map(&:save)
-      @worker_ids = workers.map(&:uuid)
+      workers.map do |worker|
+        worker.save
+        @worker_ids << worker.uuid
+      end
     end
 
     # Returns the workers associated with this batch.
     #
     # @return [Array<AsyncRequestReply::Worker>] The list of workers in the batch.
     def workers
-      @worker_ids.map { |id| AsyncRequestReply::Worker.find(id) }
+      @workers ||= @worker_ids.map { |id| AsyncRequestReply::Worker.find(id) }
+      @workers
     end
-
     # Finds a `WorkerInBatch` by its UUID raise exception case not found.
     #
     # @param p_uuid [String] The UUID of the batch to find.
@@ -86,7 +88,7 @@ module AsyncRequestReply
       return nil unless resource
 
       instance = new(resource['uuid'])
-      instance.workers = resource["worker_ids"].map { |id| AsyncRequestReply::Worker.find(id) }
+      instance.workers = @workers.present? ? @workers : resource["worker_ids"].map { |id| AsyncRequestReply::Worker.find(id) }
       instance.meta = resource["meta"]
       instance
     end
