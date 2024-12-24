@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |gem|
   gem.name        = "async_request_reply"
-  gem.version     = '1.1.0'
+  gem.version     = '1.2.0'
   gem.authors     = ["Luiz Filipe Neves Costa, Rafael Pinheiro"]
   gem.email       = %w[luizfilipeneves@gmail.com luiz.neves@prosas.com.br rafa.pinheiro.pinheiro@gmail.com]
   gem.homepage    = "https://github.com/prosas/async_request_reply"
