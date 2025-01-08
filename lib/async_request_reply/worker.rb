@@ -89,7 +89,7 @@ module AsyncRequestReply
 	    resource = @@config.repository_adapter.get(p_uuid)
 	    return nil unless resource
 
-	    unpack(@@config.repository_adapter.get(p_uuid))
+	    unpack(resource)
 	  end
 
 	  def elapsed
@@ -100,6 +100,10 @@ module AsyncRequestReply
 	  def update(attrs)
 	    assign_attributes(attrs)
 	    save
+	  end
+
+	  def reload!
+	  	assign_attributes(self.class._find(self.uuid))
 	  end
 
 	  ##
@@ -115,7 +119,8 @@ module AsyncRequestReply
 
 	  def save
 	  	return nil unless valid?
-	    @@config.repository_adapter.setex(uuid, (_ttl || LIVE_TIMEOUT), to_msgpack)
+	    attributes = self.class.unpack(@@config.repository_adapter.setex(uuid, (_ttl || LIVE_TIMEOUT), to_msgpack))
+	    assign_attributes(attributes)
 	  end
 
 	  def perform_async
@@ -168,49 +173,43 @@ module AsyncRequestReply
 	  end
 
 	  def perform
-	  	@@config.logger.info("Start perform worker #{self.uuid}")
-	    unless update(status: :processing)
-		  	@@config.logger.error("End perform worker #{self.uuid} with errors: #{self.errors.inspect}")
-		    return nil 
-	    end
-
-	    @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 	    begin
-	      if element = MethodsChain.run_methods_chain(class_instance, methods_chain)
-	      	@@config.logger.info("successful workflow perform worker #{self.uuid}")
-	
-		      klass_after = success[:class_instance] == 'self' ? element : success[:class_instance]
-		      methods_after = success[:methods_chain]
+	    	@start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+	    	@@config.logger.info("Start perform worker #{self.uuid}")
 
-	      	result = MethodsChain.run_methods_chain(klass_after, methods_after)
+	    	raise "Can't update worker while it's performing" unless update(status: :processing)
+	    	
+	    	if element = MethodsChain.run_methods_chain(class_instance, methods_chain)
+	    		@@config.logger.info("successful workflow perform worker #{self.uuid}")
+
+	    		klass_after = success[:class_instance] == 'self' ? element : success[:class_instance]
+	    		methods_after = success[:methods_chain]
+
+	    		result = MethodsChain.run_methods_chain(klass_after, methods_after)
+
+	    		@end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 	        
-	        @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-	        update(
-	          status: :done,
-	          redirect_url: if redirect_url.is_a?(Hash)
-	                          MethodsChain.run_methods_chain(redirect_url[:class_instance],
-	                                            redirect_url[:methods_chain])
-	                        else
-	                          redirect_url
-	                        end
-	        )
+	        raise "Can't update worker while it's performing" unless update(status: :done)
 	        @@config.logger.info("Done perform worker #{self.uuid}")
 	        result
 	      else
-	      	@@config.logger.info("failure workflow perform worker #{self.uuid}")
+	      	@@config.logger.error("failure workflow perform worker #{self.uuid}")
 	        klass_reject_after = failure[:class_instance] == 'self' ? element : failure[:class_instance]
 	        methods_reject_after = failure[:methods_chain]
 
 	        result = MethodsChain.run_methods_chain(klass_reject_after,methods_reject_after)
           
           @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-	        update(status: :unprocessable_entity,
+
+	        raise "Can't update worker while it's performing" unless update(
+	        			 status: :unprocessable_entity,
 	               errors: formated_erros_to_json(result))
-	        @@config.logger.info("Done perform worker #{self.uuid} with fails #{formated_erros_to_json(result)}")
+
+	        @@config.logger.error("Done perform worker #{self.uuid} with fails #{formated_erros_to_json(result)}")
 	        result
 	      end
 	    rescue StandardError => e
-        @@config.logger.info("Fatal perform worker #{self.uuid} with fails #{formated_erros_to_json(e.message)}")
+        @@config.logger.fatal("Fatal perform worker #{self.uuid} with fails #{formated_erros_to_json(e.message)}")
 	    	@end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 	      update(status: :internal_server_error, errors: formated_erros_to_json(e.message))
 	      nil
@@ -227,17 +226,18 @@ module AsyncRequestReply
 	    resouce.map { |error| error.select { |_k, v| v.present? } }
 	  end
 
-	  def assign_attributes(attrs)
-	  	attrs.each do |attribute,value|
-	  		send("#{attribute}=", value)
-	  	end
-	  end
 
 	  def errors=(value)
 	  	@errors = value
 	  end
 
 	  private
+	  def assign_attributes(attrs)
+	  	attrs.each do |attribute,value|
+	  		send("#{attribute}=", value)
+	  	end
+	  end
+
 	  def start_time=(value)
 	  	@start_time = value
 	  end
