@@ -26,8 +26,7 @@ module AsyncRequestReply
 
     # The worker UUIDs associated with this batch.
     # @return [Array<String>] an array of worker UUIDs.
-    attr_reader :worker_ids, :uuid
-    attr_accessor :meta
+    attr_accessor :meta, :worker_ids, :uuid, :processing, :waiting, :successes, :failures, :start_time, :end_time
 
     # @private
     ONE_HOUR = 3600
@@ -47,6 +46,11 @@ module AsyncRequestReply
       @worker_ids = []
       @meta = {}
       @uuid = new_record?(uuid) ? "async_request_in_batch:#{SecureRandom.uuid}" : uuid
+
+      @waiting = []
+      @processing = []
+      @failures = []
+      @successes = []
     end
 
 
@@ -62,13 +66,6 @@ module AsyncRequestReply
       end
     end
 
-    # Returns the workers associated with this batch.
-    #
-    # @return [Array<AsyncRequestReply::Worker>] The list of workers in the batch.
-    def workers
-      @workers ||= @worker_ids.map { |id| AsyncRequestReply::Worker.find(id) }
-      @workers
-    end
     # Finds a `WorkerInBatch` by its UUID raise exception case not found.
     #
     # @param p_uuid [String] The UUID of the batch to find.
@@ -88,7 +85,14 @@ module AsyncRequestReply
       return nil unless resource
 
       instance = new(resource['uuid'])
-      instance.workers = @workers.present? ? @workers : resource["worker_ids"].map { |id| AsyncRequestReply::Worker.find(id) }
+      instance.worker_ids = resource['worker_ids']
+      instance.start_time = resource['start_time']
+      instance.end_time = resource['end_time']
+      instance.worker_ids = resource['worker_ids']
+      instance.waiting = resource['waiting']
+      instance.processing = resource['processing']
+      instance.failures = resource['failures']
+      instance.successes = resource['successes']
       instance.meta = resource["meta"]
       instance
     end
@@ -123,51 +127,14 @@ module AsyncRequestReply
     #
     # @return [Integer] The total count of workers in the batch.
     def total
-      workers.count
+      worker_ids.count
     end
 
     # Returns the number of processed workers (successes + failures).
     #
     # @return [Integer] The number of processed workers.
     def processed
-      successes + failures
-    end
-
-    # Returns the workers that are currently being processed.
-    #
-    # @return [Array<AsyncRequestReply::Worker>] The workers with "processing" status.
-    def processing
-      workers.select { |worker| worker.status == "processing" }
-    end
-
-    # Returns the workers that have successfully completed processing.
-    #
-    # @return [Array<AsyncRequestReply::Worker>] The workers with "done" status.
-    def successes
-      workers.select { |worker| worker.status == "done" }
-    end
-
-    # Returns the workers that have failed processing.
-    #
-    # @return [Array<AsyncRequestReply::Worker>] The workers with "unprocessable_entity" or "internal_server_error" status.
-    def failures
-      workers.select { |worker| worker.status == "unprocessable_entity" || worker.status == "internal_server_error" }
-    end
-
-    # Returns the start time of the batch based on the earliest worker start time.
-    #
-    # @return [Float, nil] The earliest worker's start time or nil if not available.
-    def start_time
-      workers.map(&:start_time).compact.sort.first
-    end
-
-    # Returns the end time of the batch based on the latest worker end time.
-    #
-    # @return [Float, nil] The latest worker's end time or nil if not available.
-    def end_time
-      times = workers.map(&:end_time)
-      return nil if times.include?(nil)
-      times.sort.last
+      @successes + @failures
     end
 
     # Returns the elapsed time for the batch.
@@ -177,16 +144,37 @@ module AsyncRequestReply
     #
     # @return [Float, nil] The elapsed time in seconds or nil if start time is unavailable.
     def elapsed
-      return nil unless start_time
-      (end_time || Process.clock_gettime(Process::CLOCK_MONOTONIC)) - start_time
+      return nil unless @start_time
+      (@end_time || Process.clock_gettime(Process::CLOCK_MONOTONIC)) - @start_time
     end
 
     # Starts the asynchronous processing of all workers in the batch.
     #
     # @return [void]
     def perform
+      # TODO: Add concurrency model.
+      @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       save
-      workers.map(&:perform_async)
+      @waiting = worker_ids.dup
+      @waiting.size.times do
+        @processing.push(@waiting.pop)
+        save
+        worker_id = @processing.last
+        worker = AsyncRequestReply::Worker.find(worker_id)
+        worker.perform
+        worker.reload!
+        @failures.push(@processing.pop) if ["unprocessable_entity", "internal_server_error"].include?(worker.status)
+        @successes.push(@processing.pop)
+        save
+      end
+
+      @end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      save
+    end
+
+    def perform_async
+      save
+      AsyncRequestReply::Worker.new(class_instance: AsyncRequestReply::WorkerInBatch, methods_chain: [[:find, id],[:perform]]).perform_async
     end
 
     # Returns a JSON representation of the batch.
@@ -195,12 +183,19 @@ module AsyncRequestReply
     def as_json
       {
         uuid: @uuid,
+        start_time: @start_time,
+        end_time: @end_time,
         worker_ids: @worker_ids,
+        waiting: @waiting,
+        qtd_waiting: @waiting.count,
+        processing: @processing,
+        qtd_processing: @processing.count,
+        failures: @failures,
+        qtd_fail: @failures.count,
+        successes: @successes,
+        qtd_success: @successes.count,
         meta: @meta,
-        qtd_processing: processing.count,
         qtd_processed: processed.count,
-        qtd_success: successes.count,
-        qtd_fail: failures.count,
         total: total
       }
     end

@@ -87,10 +87,11 @@ describe AsyncRequestReply::WorkerInBatch do
 			batch.save
 			batch = AsyncRequestReply::WorkerInBatch.find(batch.id)
 			_(batch.perform)
-			_(batch.workers.count).must_equal 2
-			_(batch.start_time)
-			_(batch.end_time)
-			_(batch.elapsed)
+			batch = AsyncRequestReply::WorkerInBatch.find(batch.id)
+			_(batch.worker_ids.count).must_equal 2
+			_(batch.start_time).wont_be_nil
+			_(batch.end_time).wont_be_nil
+			_(batch.elapsed).wont_be_nil
 		end
 	end
 end
