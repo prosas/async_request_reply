@@ -1,5 +1,5 @@
 # Async Request Reply
-Implementation for Asynchronous Request-Reply pattern.
+Implementation of the Asynchronous Request-Reply pattern and a unified interface to make your code asynchronous.
 
 # Async Request Reply Workflow
 You can see [here](https://learn.microsoft.com/en-us/azure/architecture/patterns/async-request-reply).
