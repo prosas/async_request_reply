@@ -15,7 +15,7 @@ module AsyncRequestReply
 	  attr_accessor :status, :uuid, :status_url, :redirect_url,
 	                :class_instance, :methods_chain, :success,
 	                :redirect_url, :failure, :_ttl
-	  attr_reader :new_record, :errors, :start_time, :end_time
+	  attr_reader :new_record, :errors, :start_time, :end_time, :handle_async_engine
 
 	  def initialize(attrs = {})
 	    attrs.transform_keys(&:to_sym)
@@ -125,7 +125,16 @@ module AsyncRequestReply
 
 	  def perform_async
 	  	save
-	  	@@config.async_engine.perform_async(id)
+	  	handle_async_engine.perform_async(id)
+	  end
+
+	  def async_engine
+	  	handle_async_engine
+	  end
+
+	  def with_async_engine(engine_class)
+	  	@handle_async_engine = engine_class
+	  	self
 	  end
 
 	  # Serializa a intância usando o MessagePack.
@@ -223,7 +232,7 @@ module AsyncRequestReply
 	                [{ title: errors }]
 	              end
 
-	    resouce.map { |error| error.select { |_k, v| v.present? } }
+	    resouce.map { |error| error.select { |_k, v| !v.nil? && !(v.respond_to?(:empty?) && v.empty?) } }
 	  end
 
 
@@ -232,6 +241,11 @@ module AsyncRequestReply
 	  end
 
 	  private
+
+	  def handle_async_engine
+	  	@handle_async_engine || @@config.async_engine
+	  end
+
 	  def assign_attributes(attrs)
 	  	attrs.each do |attribute,value|
 	  		send("#{attribute}=", value)

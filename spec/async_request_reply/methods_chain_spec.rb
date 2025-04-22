@@ -20,5 +20,11 @@ describe ::AsyncRequestReply::MethodsChain do
 		it 'run with a String' do
 			_(@methods_chain.run_methods_chain(String, [[:new,"a"],[:*,2]])).must_equal "aa"
 		end
+
+		it 'run with two arguments and keyworlds arguments' do
+			Person = Struct.new(:name, :age, keyword_init: true)
+
+			_(@methods_chain.run_methods_chain(Person, [[:new, [name: "June", age: 33]], [:name]])).must_equal "June"
+		end
 	end
 end

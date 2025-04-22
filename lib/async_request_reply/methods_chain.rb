@@ -40,11 +40,13 @@ module AsyncRequestReply
         attrs_methods.inject(constant.is_a?(String) ? constant.constantize : constant) do |constantized, method|
 
           if method[1]
-            attrs = method[1]
+            args = [method[1]].flatten.select{|arg| !arg.is_a?(Hash)}
+            kwargs = ([method[1]].flatten.find{|arg| arg.is_a?(Hash)} || {}).symbolize_keys
+
             # If the argument is a Proc, pass it as a block to the method call.
-            next constantized.send(method[0], &attrs) if attrs.is_a?(Proc)
-            next constantized.send(method[0], *attrs) if attrs.is_a?(Array)
-            constantized.send(method[0], attrs)
+            next constantized.send(method[0], &args[0]) if args.size == 1 && args[0].is_a?(Proc)
+
+            constantized.send(method[0], *args, **kwargs)
 
           else
             # If no argument is provided, call the method without parameters.
