@@ -3,20 +3,27 @@ require 'async_request_reply'
 require 'byebug'
 
 describe ::AsyncRequestReply::Worker do
+  before do
+    class SyncEngine
+      def self.perform_async(async_request_id)
+        ::AsyncRequestReply::Worker.find(async_request_id).perform
+      end
+    end
+  end
   describe 'when perform with all workflow defined' do
     before do
       @async_request = ::AsyncRequestReply::Worker.new({
-                                                         class_instance: 1, methods_chain: [[:+, 1], [:*, 2]],
-                                                         success: {
-                                                           class_instance: 'self',
-                                                           methods_chain: [[:+, 1]]
-                                                         },
-                                                         failure: {
-                                                           class_instance: 'self',
-                                                           methods_chain: [[:*, 3]]
-                                                         },
-                                                         redirect_url: 'teste'
-                                                       })
+        class_instance: 1, methods_chain: [[:+, 1], [:*, 2]],
+        success: {
+          class_instance: 'self',
+          methods_chain: [[:+, 1]]
+        },
+        failure: {
+          class_instance: 'self',
+          methods_chain: [[:*, 3]]
+        },
+        redirect_url: 'teste'
+      })
 
       @async_request.save
     end
@@ -27,6 +34,23 @@ describe ::AsyncRequestReply::Worker do
       _(AsyncRequestReply::Worker.find(@async_request.id).end_time).wont_be_nil
       _(AsyncRequestReply::Worker.find(@async_request.id).elapsed).wont_be_nil
       _(AsyncRequestReply::Worker.find(@async_request.uuid).status).must_equal 'done'
+    end
+
+    it 'destroy' do
+      @async_request.destroy(0)
+    end
+
+    it 'perform_async' do
+      @async_request.perform_async
+    end
+
+    it 'find' do
+      AsyncRequestReply::Worker.find(@async_request.id)
+    end
+
+    it 'perform_async overwriting configured work engine' do
+      @async_request.with_async_engine(SyncEngine).perform_async
+      _(@async_request.async_engine).must_equal SyncEngine
     end
 
     describe 'failure workflow' do
@@ -46,6 +70,7 @@ describe ::AsyncRequestReply::Worker do
           @async_request.methods_chain = [[:==, 2]]
           @async_request.failure = { class_instance: 0, methods_chain: [] }
           @async_request.save
+          
           _(AsyncRequestReply::Worker.find(@async_request.id).perform).must_equal 0
           _(AsyncRequestReply::Worker.find(@async_request.id).start_time).wont_be_nil
           _(AsyncRequestReply::Worker.find(@async_request.id).end_time).wont_be_nil
@@ -53,18 +78,6 @@ describe ::AsyncRequestReply::Worker do
           _(AsyncRequestReply::Worker.find(@async_request.uuid).status).must_equal 'unprocessable_entity'
         end
       end
-    end
-
-    it 'destroy' do
-      @async_request.destroy(0)
-    end
-
-    it 'perform_async' do
-      @async_request.perform_async
-    end
-
-    it 'find' do
-      AsyncRequestReply::Worker.find(@async_request.id)
     end
   end
 
