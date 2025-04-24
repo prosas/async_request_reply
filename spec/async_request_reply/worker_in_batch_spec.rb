@@ -30,6 +30,25 @@ describe AsyncRequestReply::WorkerInBatch do
   let(:work3_error) { AsyncRequestReply::Worker.new({ class_instance: 2, methods_chain: [[:*, 2], [:+, 2], [:/, 0]] }) }
   let(:worker_in_batch) { AsyncRequestReply::WorkerInBatch.new([work1, work2]) }
 
+  before do
+    AsyncRequestReply.configure do |conf|
+      conf.add_message_pack_factory do |factory|
+        factory[:first_byte] = 0x09
+        factory[:klass] = Fibonacci
+        factory[:packer] = lambda { |instance, packer|
+          packer.write_string(instance.sequence_cache.to_json)
+        }
+        factory[:unpacker] = lambda { |unpacker|
+          data = unpacker.read
+          instance = Fibonacci.new
+          instance.sequence_cache = JSON.parse(data)
+          instance
+        }
+        factory
+      end
+    end
+  end
+
   describe 'meta_data' do
     it 'should save meta_data' do
       worker_in_batch = AsyncRequestReply::WorkerInBatch.new
@@ -60,24 +79,6 @@ describe AsyncRequestReply::WorkerInBatch do
   end
 
   describe '.perform' do
-    before do
-      AsyncRequestReply.configure do |conf|
-        conf.add_message_pack_factory do |factory|
-          factory[:first_byte] = 0x09
-          factory[:klass] = Fibonacci
-          factory[:packer] = lambda { |instance, packer|
-            packer.write_string(instance.sequence_cache.to_json)
-          }
-          factory[:unpacker] = lambda { |unpacker|
-            data = unpacker.read
-            instance = Fibonacci.new
-            instance.sequence_cache = JSON.parse(data)
-            instance
-          }
-          factory
-        end
-      end
-    end
 
     it 'Using with Fibonacci' do
       worker1 = AsyncRequestReply::Worker.new({ class_instance: Fibonacci.new, methods_chain: [[:sequence, 35]] })
@@ -108,5 +109,15 @@ describe AsyncRequestReply::WorkerInBatch do
       _(batch.successes.count).must_equal 2
       _(batch.failures.count).must_equal 1
     end
+  end
+
+  it '.perform_async' do
+    worker1 = AsyncRequestReply::Worker.new({ class_instance: Fibonacci.new, methods_chain: [[:sequence, 35]] })
+    worker2 = AsyncRequestReply::Worker.new({ class_instance: Fibonacci.new, methods_chain: [[:sequence, 35]] })
+    batch = AsyncRequestReply::WorkerInBatch.new
+    batch.workers = [worker1, worker2]
+    batch.save
+    batch = AsyncRequestReply::WorkerInBatch.find(batch.id)
+    _(batch.perform_async)
   end
 end
