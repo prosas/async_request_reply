@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 require 'msgpack'
+require 'active_support'
+require 'active_support/core_ext'
 
 module AsyncRequestReply
 	autoload :Config, "async_request_reply/config"

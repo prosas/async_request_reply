@@ -22,4 +22,5 @@ Gem::Specification.new do |gem|
   gem.add_dependency 'msgpack', '~> 1.0'
   gem.add_dependency 'redis-client'
   gem.add_dependency 'sidekiq', '~> 5.0'
+  gem.add_dependency 'activesupport'
 end
