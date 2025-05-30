@@ -9,7 +9,9 @@ module AsyncRequestReply
 	autoload :Worker, "async_request_reply/worker"
 	autoload :WorkerInBatch, "async_request_reply/worker_in_batch"
 	require "async_request_reply/repository_adapters/redis_repository_adapter"
+	require "async_request_reply/repository_adapters/i_o_repository_adapter"
 	require "async_request_reply/workers_engine/sidekiq"
+	require "async_request_reply/workers_engine/simple_thread_pool"
 
 	# Load default configs
 	AsyncRequestReply::Config.instance

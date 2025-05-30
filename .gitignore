@@ -2,3 +2,4 @@
 file.txt
 .byebug_history
 dump.rdb
+.async_request_reply

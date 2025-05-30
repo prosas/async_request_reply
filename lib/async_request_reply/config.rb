@@ -5,9 +5,9 @@ require 'logger'
 module AsyncRequestReply
   class Config
     DEFAULTS = {
-      repository_adapter: :redis,
+      repository_adapter: :io,
       redis_url_conection: 'redis://localhost:6379',
-      async_engine: :sidekiq,
+      async_engine: :simple_thread_pool,
       logger: Logger.new(STDOUT)
     }
 
@@ -34,6 +34,7 @@ module AsyncRequestReply
 
     def repository_adapter
       return AsyncRequestReply::RepositoryAdapters::RedisRepositoryAdapter if config.repository_adapter == :redis
+      return AsyncRequestReply::RepositoryAdapters::IORepositoryAdapter if config.repository_adapter == :io
       config.repository_adapter
     end
 
@@ -42,7 +43,7 @@ module AsyncRequestReply
     end
 
     def async_engine
-      return AsyncRequestReply::WorkersEngine::Async if config.async_engine   == :async
+      return AsyncRequestReply::WorkersEngine::SimpleThreadPool if config.async_engine   == :simple_thread_pool
       return AsyncRequestReply::WorkersEngine::Sidekiq if config.async_engine == :sidekiq
 
       config.async_engine
