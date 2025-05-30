@@ -58,7 +58,9 @@ describe ::AsyncRequestReply::Worker do
         it '.perform' do
           @async_request.methods_chain = [[:/, 0]]
           @async_request.save
-          assert_nil(AsyncRequestReply::Worker.find(@async_request.id).perform)
+
+          error = assert_raises(ZeroDivisionError) {AsyncRequestReply::Worker.find(@async_request.id).perform }
+          assert_equal "divided by 0", error.message
           _(AsyncRequestReply::Worker.find(@async_request.id).start_time).wont_be_nil
           _(AsyncRequestReply::Worker.find(@async_request.id).end_time).wont_be_nil
           _(AsyncRequestReply::Worker.find(@async_request.id).elapsed).wont_be_nil
@@ -78,6 +80,19 @@ describe ::AsyncRequestReply::Worker do
           _(AsyncRequestReply::Worker.find(@async_request.uuid).status).must_equal 'unprocessable_entity'
         end
       end
+      describe 'when raising exception' do
+        it 'should handle raised exception during perform' do
+          @async_request.methods_chain = [[:raise, StandardError.new('Test error')]]
+          @async_request.save
+
+          error = assert_raises(StandardError) {AsyncRequestReply::Worker.find(@async_request.id).perform }
+          assert_equal "Test error", error.message
+          _(AsyncRequestReply::Worker.find(@async_request.id).start_time).wont_be_nil
+          _(AsyncRequestReply::Worker.find(@async_request.id).end_time).wont_be_nil
+          _(AsyncRequestReply::Worker.find(@async_request.id).elapsed).wont_be_nil
+          _(AsyncRequestReply::Worker.find(@async_request.uuid).status).must_equal 'internal_server_error'
+        end
+      end
     end
   end
 
@@ -87,6 +102,7 @@ describe ::AsyncRequestReply::Worker do
     end
 
     it 'should not perform with not have class_instance' do
+      @async_request.raise_error = false
       assert_nil(@async_request.perform)
     end
 

@@ -159,6 +159,7 @@ module AsyncRequestReply
         save
         worker_id = @processing.last
         worker = AsyncRequestReply::Worker.find(worker_id)
+        worker.raise_error = false
         worker.perform
         worker.reload!
         if %w[unprocessable_entity internal_server_error].include?(worker.status)

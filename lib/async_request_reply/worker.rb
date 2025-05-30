@@ -14,7 +14,7 @@ module AsyncRequestReply
 
 	  attr_accessor :status, :uuid, :status_url, :redirect_url,
 	                :class_instance, :methods_chain, :success,
-	                :redirect_url, :failure, :_ttl
+	                :redirect_url, :failure, :_ttl, :raise_error
 	  attr_reader :new_record, :errors, :start_time, :end_time, :handle_async_engine
 
 	  def initialize(attrs = {})
@@ -49,12 +49,14 @@ module AsyncRequestReply
 	      'class_instance' => class_instance,
 	      'redirect_url' => redirect_url,
 	      'start_time' => start_time,
-	      'end_time' => end_time
+	      'end_time' => end_time,
+	      'raise_error' => raise_error
 	    }
 	  end
 
 	  def default_attributes
 	    {
+	    	raise_error: true,
 	    	methods_chain: [],
 	      'status' => :waiting,
 	      success: {
@@ -221,6 +223,7 @@ module AsyncRequestReply
         @@config.logger.fatal("Fatal perform worker #{self.uuid} with fails #{formated_erros_to_json(e.message)}")
 	    	@end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 	      update(status: :internal_server_error, errors: formated_erros_to_json(e.message))
+	      raise e if @raise_error
 	      nil
 	    end
 	  end
