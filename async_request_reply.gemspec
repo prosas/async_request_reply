@@ -20,7 +20,7 @@ Gem::Specification.new do |gem|
   gem.add_dependency 'connection_pool', '~> 2.4'
   gem.add_dependency 'enumerize', '~> 2.3'
   gem.add_dependency 'msgpack', '~> 1.0'
-  gem.add_dependency 'redis-client'
+  gem.add_dependency 'redis-client', '~> 0.2'
   gem.add_dependency 'sidekiq', '~> 5.0'
-  gem.add_dependency 'activesupport'
+  gem.add_dependency 'activesupport', ['~> 8.0', '~> 7.2']
 end
