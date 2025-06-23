@@ -14,17 +14,6 @@ Install the gem:
 gem install async_request_reply
 ```
 
-## Configuration
-
-By default, `AsyncRequestReply` depends on Redis and Sidekiq. Here's how to set up the basic configuration:
-
-```ruby
-AsyncRequestReply.config do |conf|
-  conf.redis_url_conection = 'redis://localhost:6379'
-  conf.async_engine = :sidekiq
-end
-```
-
 ## Method Chain
 
 This interface allows you to chain and execute a sequence of method calls on a class or instance:
@@ -78,7 +67,22 @@ end
 
 > **Note**: `AsyncRequestReply::Worker` **does not** store the result of the method chain.
 
-You can also define separate method chains for success and failure (not shown here).
+You can also define separate method chains for success and failure:
+```ruby
+@async_request = ::AsyncRequestReply::Worker.new({
+  class_instance: 'Project',
+  methods_chain: [[:very_expensive_task]],
+  success: {
+    class_instance: 'self',
+    methods_chain: [[:notify_success]]
+  },
+  failure: {
+    class_instance: 'self',
+    methods_chain: [[:notify_failure]]
+  }
+})
+@async_request.perform_async
+```
 
 ## Custom MessagePack Factories
 
@@ -109,6 +113,16 @@ file = File.new("./file.txt", "w")
 @async_request.class_instance = file
 @async_request.perform_async
 ```
+## Configuration Redis & Sidekiq
+
+By default, AsyncRequestReply is implemented a simple storage instruction and async engine. For production scenario, you can configure Redis and Sidekiq. Here's how to set up the configuration:
+
+```ruby
+AsyncRequestReply.config do |conf|
+  conf.redis_url_conection = 'redis://localhost:6379'
+  conf.async_engine = :sidekiq
+end
+```
 
 ## Define Your Own Repository
 
@@ -124,6 +138,11 @@ class MyAsync
     worker = AsyncRequestReply::Worker.find(async_request_id)
     # Perform async task...
   end
+end
+
+# Configurations
+AsyncRequestReply.config do |conf|
+  conf.async_engine = MyAsync
 end
 ```
 

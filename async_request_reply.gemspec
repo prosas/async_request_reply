@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |gem|
   gem.name        = 'async_request_reply'
-  gem.version     = '1.4.1'
+  gem.version     = '1.4.2'
   gem.authors     = ['Luiz Filipe Neves Costa, Rafael Pinheiro']
   gem.email       = %w[luizfilipeneves@gmail.com luiz.neves@prosas.com.br rafa.pinheiro.pinheiro@gmail.com]
   gem.homepage    = 'https://github.com/prosas/async_request_reply'
@@ -20,7 +20,7 @@ Gem::Specification.new do |gem|
   gem.add_dependency 'connection_pool', '~> 2.4'
   gem.add_dependency 'enumerize', '~> 2.3'
   gem.add_dependency 'msgpack', '~> 1.0'
-  gem.add_dependency 'redis-client'
+  gem.add_dependency 'redis-client', '~> 0.2'
   gem.add_dependency 'sidekiq', '~> 5.0'
-  gem.add_dependency 'activesupport'
+  gem.add_dependency 'activesupport', ['~> 8.0', '~> 7.2']
 end
