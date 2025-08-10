@@ -126,7 +126,71 @@ end
 
 ## Define Your Own Repository
 
-> _TODO: Documentation coming soon._
+You can create custom repository adapters by implementing the `AbstractRepositoryAdapter` class. This allows you to use different storage backends while maintaining the same interface.
+
+### Repository Adapter Interface
+
+Your custom repository adapter must implement these three methods:
+
+- `get(uuid)` - Retrieves data by UUID, returns `nil` if not found
+- `del(uuid)` - Deletes data by UUID
+- `setex(uuid, ttl, payload)` - Stores data with optional TTL, returns the stored data
+
+### Example: File-based Repository
+
+Here's an example of a file-based repository adapter (similar to the built-in `IORepositoryAdapter`):
+
+```ruby
+require_relative 'abstract_repository_adapter'
+require 'tmpdir'
+
+module AsyncRequestReply
+  module RepositoryAdapters
+    class FileRepositoryAdapter < AbstractRepositoryAdapter
+      @@prefix = ".my_async_storage".freeze
+      
+      class << self
+        def get(uuid)
+          begin
+            IO.binread("#{@@prefix}/#{uuid}")
+          rescue StandardError => e
+            return nil if e.is_a?(Errno::ENOENT)
+            raise e
+          end
+        end
+
+        def del(uuid)
+          File.delete("#{@@prefix}/#{uuid}")
+        end
+
+        def setex(uuid, ttl = nil, payload)
+          Dir.mkdir(@@prefix) unless Dir.exist?(@@prefix)
+          IO.binwrite("#{@@prefix}/#{uuid}", payload)
+          self.get(uuid)
+        end
+      end
+    end
+  end
+end
+```
+
+### Using Your Custom Repository
+
+To use your custom repository adapter, configure it in your application:
+
+```ruby
+AsyncRequestReply.config do |conf|
+  conf.repository_adapter = FileRepositoryAdapter
+end
+```
+
+### Key Considerations
+
+- **Error Handling**: Handle file system errors gracefully, especially `ENOENT` (file not found)
+- **Directory Creation**: Ensure the storage directory exists before writing files
+- **Binary Data**: Use `IO.binread` and `IO.binwrite` for binary data compatibility
+- **TTL Support**: While the interface includes TTL, file-based storage doesn't automatically expire files
+- **Thread Safety**: Consider thread safety if your adapter will be used in multi-threaded environments
 
 ## Create a Custom Async Engine
 
