@@ -117,7 +117,10 @@ module AsyncRequestReply
     # @return [void]
     def save
       # TODO-2024-11-27: Decide serializer strategy (e.g., json, message_packer).
-      @@config.repository_adapter.setex(uuid, LIVE_TIMEOUT, as_json.to_json)
+      # TODO-2025-08-05: Definir melhor a interface do AbstractRepositoryAdapter. A interface
+      # não define o tipo de retorno da implementação tornando o comportamento
+      # imprevisível para o cliente.
+      @@config.repository_adapter.setex(uuid, LIVE_TIMEOUT, as_json.to_json) ? true : false
     end
 
     # Returns the total number of workers in the batch.
