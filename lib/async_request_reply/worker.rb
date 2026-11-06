@@ -14,7 +14,7 @@ module AsyncRequestReply
 
 	  attr_accessor :status, :uuid, :status_url, :redirect_url,
 	                :class_instance, :methods_chain, :success,
-	                :redirect_url, :failure, :_ttl, :raise_error
+	                :redirect_url, :failure, :_ttl, :raise_error, :engine_job_id
 	  attr_reader :new_record, :errors, :start_time, :end_time, :handle_async_engine
 
 	  def initialize(attrs = {})
@@ -50,7 +50,8 @@ module AsyncRequestReply
 	      'redirect_url' => redirect_url,
 	      'start_time' => start_time,
 	      'end_time' => end_time,
-	      'raise_error' => raise_error
+	      'raise_error' => raise_error,
+	      'engine_job_id' => engine_job_id,
 	    }
 	  end
 
@@ -123,6 +124,12 @@ module AsyncRequestReply
 	  	return nil unless valid?
 	    attributes = self.class.unpack(@@config.repository_adapter.setex(uuid, (_ttl || LIVE_TIMEOUT), to_msgpack))
 	    assign_attributes(attributes)
+	  end
+
+	  def perform_async_at(datetime)
+	  	save
+	  	self.engine_job_id = handle_async_engine.perform_async_at(datetime, id)
+	  	save
 	  end
 
 	  def perform_async

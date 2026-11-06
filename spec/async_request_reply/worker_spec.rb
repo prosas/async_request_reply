@@ -1,6 +1,7 @@
 require 'minitest/autorun'
 require 'async_request_reply'
 require 'byebug'
+require 'time'
 
 describe ::AsyncRequestReply::Worker do
   before do
@@ -42,6 +43,28 @@ describe ::AsyncRequestReply::Worker do
 
     it 'perform_async' do
       @async_request.perform_async
+    end
+
+    it 'perform_async_at stores engine_job_id and schedules via engine' do
+      class ScheduleEngine
+        @@calls = []
+        def self.perform_async_at(datetime, async_request_id)
+          @@calls << [datetime, async_request_id]
+          "jid-#{async_request_id}"
+        end
+        def self.calls; @@calls; end
+      end
+
+      worker = ::AsyncRequestReply::Worker.new({ class_instance: 1, methods_chain: [[:+, 1]] })
+      scheduled_for = Time.now + 60
+      worker.with_async_engine(ScheduleEngine).perform_async_at(scheduled_for)
+
+      reloaded = ::AsyncRequestReply::Worker.find(worker.id)
+      _(reloaded.engine_job_id).wont_be_nil
+      _(ScheduleEngine.calls.last[1]).must_equal worker.id
+      # datetime equality tolerance (float vs time)
+      called_time = ScheduleEngine.calls.last[0]
+      _( (called_time.to_f - scheduled_for.to_f).abs < 1 ).must_equal true
     end
 
     it 'find' do

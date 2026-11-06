@@ -9,6 +9,10 @@ module AsyncRequestReply
 				worker = ::AsyncRequestReply::Worker.find(async_request_id)
 				worker.perform
 			end
+
+			def self.perform_async_at(datetime, async_request_id)
+				perform_at(datetime, async_request_id)
+			end
 		end
 	end
 end
